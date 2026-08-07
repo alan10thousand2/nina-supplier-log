@@ -155,7 +155,7 @@
         width: 100%;
         border-collapse: collapse;
         font-size: 14px;
-        min-width: 640px;
+        min-width: 800px;
       }
       thead {
         background: #f0f6fe;
@@ -219,13 +219,6 @@
         color: #95adcc;
         margin-top: 8px;
       }
-      .badge-empty {
-        background: #f0f4fa;
-        color: #5b789b;
-        padding: 2px 14px;
-        border-radius: 30px;
-        font-size: 13px;
-      }
       .footer-note {
         margin-top: 20px;
         text-align: right;
@@ -270,7 +263,7 @@
         }
         table {
           font-size: 13px;
-          min-width: 480px;
+          min-width: 600px;
         }
       }
       @media (max-width: 480px) {
@@ -293,7 +286,7 @@
         }
         table {
           font-size: 12px;
-          min-width: 360px;
+          min-width: 480px;
         }
         thead th,
         tbody td {
@@ -309,8 +302,8 @@
         <small>搜尋工具</small>
       </h1>
       <div class="sub">
-        🔍 輸入公司名稱、人名、電話號碼或卡號 (CARD_NO)
-        嘅部分內容，系統會幫你搵出所有近似記錄
+        🔍
+        輸入公司名稱、人名、電話號碼、卡號或備註嘅部分內容，系統會幫你搵出所有近似記錄
       </div>
 
       <div class="search-area">
@@ -318,7 +311,7 @@
         <input
           type="text"
           id="searchInput"
-          placeholder="例如：翠湖 / 陳 / 66566648 / G576 …"
+          placeholder="例如：翠湖 / 陳 / 66566648 / G576 / 備註關鍵字"
           autofocus
         />
         <button id="searchBtn">搜尋</button>
@@ -334,18 +327,19 @@
         <table>
           <thead>
             <tr>
-              <th style="width: 16%">供應商名稱</th>
-              <th style="width: 26%">姓名 (NAME)</th>
-              <th style="width: 28%">卡號 (CARD_NO)</th>
-              <th style="width: 20%">電話 (PHONE)</th>
+              <th style="width: 14%">供應商名稱</th>
+              <th style="width: 20%">姓名 (NAME)</th>
+              <th style="width: 18%">卡號 (CARD_NO)</th>
+              <th style="width: 14%">電話 (PHONE)</th>
+              <th style="width: 24%">備註 (REMARK)</th>
             </tr>
           </thead>
           <tbody id="resultBody">
             <tr>
-              <td colspan="4">
+              <td colspan="5">
                 <div class="empty-state">
                   <div class="icon">🔎</div>
-                  <p>輸入關鍵字搜尋供應商、聯絡人、電話或卡號</p>
+                  <p>輸入關鍵字搜尋供應商、聯絡人、電話、卡號或備註</p>
                   <div class="sub-hint">支援部份匹配，不分大小寫</div>
                 </div>
               </td>
@@ -354,15 +348,27 @@
         </table>
       </div>
       <div class="footer-note">
-        ⚡ 共 <span id="footerTotal">0</span> 筆記錄 · 模糊搜尋
+        ⚡ 共 <span id="footerTotal">0</span> 筆記錄 · 模糊搜尋（包含備註）
       </div>
     </div>
 
     <script>
       // --------------------------------------------------------------
-      // 1. 數據：從「供應商聯絡人260722.xlsx」工作表提取 (共約 380 行)
+      // 1. 數據：包含第五列「備註」
       // --------------------------------------------------------------
       const rawData = [
+        ["", "", "", "", ""],
+        ["", "", "", "", ""],
+        ["HKT", "Lau Cheuk Hoi", "Y8837", "65841373", "Contact -> MIS"],
+        ["HKT", "劉卓凱", "Y8837", "65841373", "Contact -> MIS"],
+        [
+          "水務處",
+          "Lee Ka Wai, Kent",
+          "13422",
+          "92896095",
+          "Keys(7, 26, 27), 抄水錶",
+        ],
+        ["水務處", "李家偉", "13422", "92896095", "Keys(7, 26, 27), 抄水錶"],
         ["港置", "方鎮強", "", "", "Coffee"],
         ["港置", "Fong Chun Keung", "", "", "Coffee supplier"],
         ["集寶", "Poon Wing Kwan", "00000928964", "54973975", ""],
@@ -376,6 +382,8 @@
         ["中天環保", "Low Yuen", "MP378", "97380321", ""],
         ["俊興", "林捷俊", "K584585", "91521028", ""],
         ["新明苑", "何家寶", "WX824", "67300350", ""],
+        ["鴻發", "張毅全", "Z7629", "60973653", ""],
+        ["鴻發", "Cheung Ngai Chuen", "Z7629", "60973653", ""],
         ["鴻發", "何毅恆", "PE9931", "93397035", "PE9931,"],
         ["鴻發", "Ho Ngai Rang", "PE9931", "93397035", "PE9931,"],
         ["成利", "謝朗星", "MBST8004R-03-26R", "23432207"],
@@ -819,6 +827,7 @@
         name: row[1] || "",
         card: row[2] || "",
         phone: row[3] || "",
+        remark: row[4] || "", // 備註
       }));
 
       const total = data.length;
@@ -848,7 +857,7 @@
         if (!results || results.length === 0) {
           resultBody.innerHTML = `
                     <tr>
-                        <td colspan="4">
+                        <td colspan="5">
                             <div class="empty-state">
                                 <div class="icon">🔍</div>
                                 <p>搵唔到相關記錄</p>
@@ -868,12 +877,14 @@
           const name = kw ? highlightText(item.name, kw) : item.name;
           const card = kw ? highlightText(item.card, kw) : item.card;
           const phone = kw ? highlightText(item.phone, kw) : item.phone;
+          const remark = kw ? highlightText(item.remark, kw) : item.remark;
           html += `
                     <tr>
                         <td>${sup}</td>
                         <td>${name}</td>
                         <td>${card}</td>
                         <td>${phone}</td>
+                        <td>${remark}</td>
                     </tr>
                 `;
         });
@@ -885,7 +896,6 @@
         const rawKeyword = searchInput.value;
         const keyword = rawKeyword.trim();
         if (!keyword) {
-          // 顯示全部
           renderResults(data, "");
           resultHint.textContent = `顯示全部 ${total} 筆記錄`;
           return;
@@ -897,7 +907,8 @@
             item.supplier.toLowerCase().includes(lowerKeyword) ||
             item.name.toLowerCase().includes(lowerKeyword) ||
             item.card.toLowerCase().includes(lowerKeyword) ||
-            item.phone.toLowerCase().includes(lowerKeyword),
+            item.phone.toLowerCase().includes(lowerKeyword) ||
+            item.remark.toLowerCase().includes(lowerKeyword),
         );
         renderResults(matched, keyword);
       }
